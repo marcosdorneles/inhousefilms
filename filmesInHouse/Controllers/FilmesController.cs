@@ -2,42 +2,43 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using filmesInHouse.Context;
 using filmesInHouse.Models;
 using Microsoft.AspNetCore.Mvc;
-
+using Microsoft.EntityFrameworkCore;
 
 namespace filmesInHouse.Controllers
 {
+    [ApiController]
     [Route("api/v{version:apiVersion}/filmes")]
     public class FilmesController : Controller
     {
 
-        /// <summary>
-        /// Lista Mocada de Filmes
-        /// </summary>
-        /// <returns>Retorna uma lista mocada de filmes</returns>
-        /// <response code=200></response>
-        [ProducesResponseType(StatusCodes.Status200OK)]
-        [HttpGet]
-        public IActionResult Get()
-        {
-            return Ok(MockFilmes.Filmes);
+        private readonly FilmesContext _filmeContext;
+
+        public FilmesController(FilmesContext filmesContext) {
+            _filmeContext = filmesContext;
         }
 
-        /// <summary>
-        /// Requisição de um item de uma lista de filmes mocada
-        /// </summary>
-        /// <param name="id">Id do Filme</param>
-        /// <returns>Retorna objeto do filme</returns>
-        /// <response code ="404">Id não encontrado</response>
-        /// <response code="200"> Sucesso no retorno do filme selecionado pelo Id</response>>
+
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [HttpGet]
+        public async Task <IActionResult> Get()
+        {
+            var filmes = await _filmeContext.Filmes.ToListAsync().ConfigureAwait(true);
+            return Ok(filmes);
+        }
+
+
         [HttpGet("{id}")]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
-        public IActionResult Get(int id)
+        public async Task <IActionResult> Get(int id)
         {
             //pesquisar pelo id e retornar se for verdadeiro
-            Filme filme = MockFilmes.Filmes.FirstOrDefault(x => x.Id == id);
+            Filme? filme = await _filmeContext.Filmes
+                                                    .FirstOrDefaultAsync(x => x.Id == id)
+                                                    .ConfigureAwait(true);
 
             //erro 404 caso não exista
             if(filme is null)
@@ -48,68 +49,46 @@ namespace filmesInHouse.Controllers
             return Ok(filme);
         }
 
-        /// <summary>
-        /// Criação de novo filme na lista mocada
-        /// </summary>
-        /// <param name="filme">Objeto do Filme</param>
-        /// <returns>Novo filme</returns>
-        /// <response code="201">Objeto criado com sucesso</response>
         [HttpPost]
         [ProducesResponseType(StatusCodes.Status201Created)]
-        public IActionResult Post([FromBody]Filme filme)
+        public async Task<IActionResult> Post([FromBody]Filme filme)
         {
-            MockFilmes.Filmes.Add(filme);
+            _filmeContext.Filmes.Add(filme);
+            await _filmeContext.SaveChangesAsync();
             return CreatedAtAction(nameof(Get), new { id = filme.Id }, filme);
         }
 
-        /// <summary>
-        /// Atualiza filme da lista
-        /// </summary>
-        /// <param name="id"></param>
-        /// <param name="filme"></param>
-        /// <returns>filme atualizado</returns>
-        /// <response code="404">filme não encontrado</response>
-        /// <response code="204">Atualização concluída com sucesso</response>
         [HttpPut("{id}")]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public IActionResult Put (int id, [FromBody]Filme filme)
+        public async Task <IActionResult> Put (int id, [FromBody]Filme filme)
         {
-            Filme filmeUpdate = MockFilmes.Filmes.FirstOrDefault(x => x.Id == id);
+            bool existeFilme = await _filmeContext.Filmes.AnyAsync(x => x.Id == id).ConfigureAwait(true);
 
-            if(filme is null)
+            if(!existeFilme)
             {
                 return NotFound();
             }
 
-            //Em resumo, esse trecho de código verifica se o filme existe na lista
-            //e, se existir, substitui o filme existente pelo novo filme fornecido na solicitação.
-            var index = MockFilmes.Filmes.IndexOf(filmeUpdate);
-            if(index != -1)
-            {
-                MockFilmes.Filmes[index] = filme;
-                
-            }
+            _filmeContext.Entry(filme).State = EntityState.Modified;
+            await _filmeContext.SaveChangesAsync();
 
             return NoContent();
         }
 
-        /// <summary>
-        /// Deleta filme da lista
-        /// </summary>
-        /// <param name="id">id do filme</param>
-        /// <returns>filme deletado</returns>
+
         [HttpDelete("{id}")]
-        public IActionResult Delete(int id)
+        public async Task <IActionResult> Delete(int id)
         {
-            Filme filme = MockFilmes.Filmes.FirstOrDefault(x => x.Id == id);
+            var filme = await _filmeContext.Filmes.FirstOrDefaultAsync(x => x.Id == id).ConfigureAwait(true);
 
             if (filme is null)
             {
                 return NotFound();
             }
 
-            MockFilmes.Filmes.Remove(filme);
+            _filmeContext.Filmes.Remove(filme);
+            await _filmeContext.SaveChangesAsync();
 
             return NoContent();
         }

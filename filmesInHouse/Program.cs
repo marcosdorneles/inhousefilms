@@ -1,6 +1,8 @@
 ﻿using filmesInHouse;
+using filmesInHouse.Context;
 using Microsoft.AspNetCore.Mvc.ApiExplorer;
 using Microsoft.AspNetCore.Mvc.Versioning;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -34,6 +36,11 @@ builder.Services.AddVersionedApiExplorer(
 
 builder.Services.ConfigureOptions<ConfigureSwaggerOptions>();
 
+builder.Services.AddDbContext<FilmesContext>(options =>
+                options.UseSqlServer("Server=localhost, 1433; Database=Filmesdb;User= sa;Password=Py2238yy,,;TrustServerCertificate=true"));
+
+builder.Services.AddControllers().AddNewtonsoftJson(
+    x => x.SerializerSettings.ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore);
 
 var app = builder.Build();
 
